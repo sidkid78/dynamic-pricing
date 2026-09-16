@@ -1,0 +1,23 @@
+# dependencies
+node_modules
+
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# env
+.env
+.env*.local
+.env.local
+
+# supabase local
+supabase/.branches
+supabase/.temp
+
+# Gemini Agent
+.gemini-agent/cache/
+
+# misc
+*.log
+.DS_Store
