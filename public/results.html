@@ -1,0 +1,1905 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Autonomous Dynamic Pricing & MDP Policy Synthesis | SKU-99</title>
+  <meta name="description" content="Executive decision summary and reinforcement learning policy trace for SKU-99 enterprise dynamic pricing." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-dark: #07090e;
+      --bg-card: rgba(15, 23, 42, 0.75);
+      --bg-card-hover: rgba(30, 41, 59, 0.85);
+      --bg-surface: rgba(255, 255, 255, 0.03);
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(99, 102, 241, 0.35);
+      --border-emerald: rgba(16, 185, 129, 0.3);
+      
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.25);
+      --indigo: #6366f1;
+      --indigo-glow: rgba(99, 102, 241, 0.25);
+      --cyan: #06b6d4;
+      --cyan-glow: rgba(6, 182, 212, 0.25);
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.2);
+      --rose: #f43f5e;
+      --rose-glow: rgba(244, 63, 94, 0.25);
+      --purple: #a855f7;
+
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-muted: #64748b;
+      --radius-lg: 16px;
+      --radius-md: 10px;
+      --radius-sm: 6px;
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-title: 'Outfit', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      background-image: 
+        radial-gradient(at 15% 10%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+        radial-gradient(at 85% 15%, rgba(6, 182, 212, 0.12) 0px, transparent 50%),
+        radial-gradient(at 50% 80%, rgba(16, 185, 129, 0.08) 0px, transparent 60%);
+      background-attachment: fixed;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      min-height: 100vh;
+      overflow-x: hidden;
+      padding-bottom: 80px;
+    }
+
+    /* Ambient Header Glow Bar */
+    .top-glow-bar {
+      height: 3px;
+      width: 100%;
+      background: linear-gradient(90deg, #6366f1, #06b6d4, #10b981, #a855f7);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .container {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 24px 24px 40px;
+    }
+
+    /* Glass Effect Utilities */
+    .glass-panel {
+      background: var(--bg-card);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      transition: border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+    .glass-panel:hover {
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+
+    /* Top Navigation / App Bar */
+    .nav-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo-badge {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #6366f1, #06b6d4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+      font-family: var(--font-title);
+      font-weight: 800;
+      font-size: 1.25rem;
+      color: #fff;
+    }
+    .brand-text h1 {
+      font-family: var(--font-title);
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .brand-text p {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+    .top-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      border-radius: 9999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #34d399;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 8px #10b981;
+      animation: pulseAnim 2s infinite;
+    }
+    @keyframes pulseAnim {
+      0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
+      100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    .action-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 16px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-1px);
+    }
+    .action-btn.primary {
+      background: linear-gradient(135deg, #4f46e5, #06b6d4);
+      border: none;
+      box-shadow: 0 4px 15px rgba(79, 70, 229, 0.35);
+    }
+    .action-btn.primary:hover {
+      box-shadow: 0 6px 20px rgba(79, 70, 229, 0.5);
+    }
+
+    /* Trace IDs Pill Strip */
+    .trace-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+      margin-bottom: 24px;
+      border-radius: var(--radius-md);
+      background: rgba(15, 23, 42, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 0.8rem;
+      gap: 12px;
+      overflow-x: auto;
+    }
+    .trace-pills {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .trace-pill {
+      font-family: var(--font-mono);
+      font-size: 0.72rem;
+      padding: 4px 10px;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      color: #cbd5e1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+    .trace-pill:hover {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: var(--indigo);
+      color: #fff;
+    }
+    .trace-pill span.tag {
+      font-weight: 700;
+      color: #818cf8;
+    }
+
+    /* Main Hero Pricing Banner */
+    .hero-banner {
+      display: grid;
+      grid-template-columns: 1.35fr 1fr;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+    @media (max-width: 980px) {
+      .hero-banner {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .hero-card {
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+    .hero-card::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 280px;
+      height: 280px;
+      background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-eyebrow {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .sku-badge {
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #38bdf8;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 4px 10px;
+      border-radius: 6px;
+    }
+    .hero-title {
+      font-family: var(--font-title);
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 8px;
+      color: #fff;
+    }
+    .hero-price-display {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      margin: 16px 0 20px;
+    }
+    .big-price {
+      font-family: var(--font-title);
+      font-size: 3.8rem;
+      font-weight: 800;
+      line-height: 1;
+      color: #34d399;
+      text-shadow: 0 0 30px rgba(16, 185, 129, 0.4);
+      letter-spacing: -0.03em;
+    }
+    .price-context {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .badge-gain {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #10b981;
+      background: rgba(16, 185, 129, 0.15);
+      padding: 4px 10px;
+      border-radius: 6px;
+      width: fit-content;
+    }
+    .benchmark-ref {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+    .benchmark-ref strong {
+      color: #f1f5f9;
+    }
+
+    /* Interactive Price Corridor Ladder */
+    .corridor-container {
+      margin-top: 14px;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: var(--radius-md);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .corridor-label {
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .price-ladder-bar {
+      position: relative;
+      height: 12px;
+      border-radius: 6px;
+      background: linear-gradient(90deg, #334155 0%, #1e293b 100%);
+      margin: 24px 12px 36px;
+    }
+    .ladder-fill {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 72%;
+      border-radius: 6px;
+      background: linear-gradient(90deg, rgba(239, 68, 68, 0.4) 0%, rgba(245, 158, 11, 0.5) 45%, rgba(16, 185, 129, 0.8) 100%);
+    }
+    .ladder-point {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+    }
+    .point-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #0f172a;
+      border: 3px solid #94a3b8;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      transition: transform 0.2s;
+    }
+    .ladder-point:hover .point-dot {
+      transform: scale(1.3);
+    }
+    .point-dot.recommended {
+      border-color: #10b981;
+      background: #10b981;
+      box-shadow: 0 0 14px #10b981;
+      width: 18px;
+      height: 18px;
+    }
+    .point-dot.map-floor {
+      border-color: #f43f5e;
+      background: #f43f5e;
+    }
+    .point-dot.anti-race {
+      border-color: #f59e0b;
+      background: #f59e0b;
+    }
+    .point-dot.comp {
+      border-color: #38bdf8;
+      background: #0f172a;
+    }
+    .point-label-top {
+      position: absolute;
+      bottom: 18px;
+      white-space: nowrap;
+      font-size: 0.72rem;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: #e2e8f0;
+    }
+    .point-label-bottom {
+      position: absolute;
+      top: 20px;
+      white-space: nowrap;
+      font-size: 0.68rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    /* Metric Grid (Right Hero Side) */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 580px) {
+      .metric-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .metric-card {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+      background: var(--border-accent);
+      border-radius: 4px 0 0 4px;
+    }
+    .metric-card.emerald::before { background: #10b981; }
+    .metric-card.indigo::before { background: #6366f1; }
+    .metric-card.cyan::before { background: #06b6d4; }
+    .metric-card.amber::before { background: #f59e0b; }
+
+    .metric-label {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .metric-value {
+      font-family: var(--font-title);
+      font-size: 1.9rem;
+      font-weight: 700;
+      color: #fff;
+      margin: 10px 0 4px;
+      line-height: 1.1;
+    }
+    .metric-subtext {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+    .metric-subtext strong {
+      color: #cbd5e1;
+    }
+
+    /* Multi-Agent Live Consensus Flow */
+    .consensus-section {
+      padding: 24px;
+      margin-bottom: 28px;
+    }
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .section-title {
+      font-family: var(--font-title);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #f1f5f9;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .agent-pipeline {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      position: relative;
+    }
+    @media (max-width: 1024px) {
+      .agent-pipeline {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+    @media (max-width: 640px) {
+      .agent-pipeline {
+        grid-template-columns: 1fr;
+      }
+    }
+    .agent-step-card {
+      padding: 18px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: all 0.25s ease;
+      position: relative;
+    }
+    .agent-step-card:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(99, 102, 241, 0.4);
+      transform: translateY(-2px);
+    }
+    .agent-step-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 4px 8px;
+      border-radius: 4px;
+      width: fit-content;
+    }
+    .agent-step-card.erp .agent-step-badge {
+      background: rgba(6, 182, 212, 0.15);
+      color: #22d3ee;
+      border: 1px solid rgba(6, 182, 212, 0.3);
+    }
+    .agent-step-card.trade .agent-step-badge {
+      background: rgba(244, 63, 94, 0.15);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.3);
+    }
+    .agent-step-card.drl .agent-step-badge {
+      background: rgba(168, 85, 247, 0.15);
+      color: #c084fc;
+      border: 1px solid rgba(168, 85, 247, 0.3);
+    }
+    .agent-step-card.orchestrator .agent-step-badge {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .agent-step-name {
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #f8fafc;
+    }
+    .agent-step-finding {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.45;
+    }
+    .agent-verdict {
+      margin-top: auto;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      padding: 6px 10px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 4px;
+      border-left: 2px solid #10b981;
+      color: #e2e8f0;
+    }
+
+    /* Tabs Architecture */
+    .tabs-container {
+      margin-bottom: 30px;
+    }
+    .tab-nav {
+      display: flex;
+      gap: 6px;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 24px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+    }
+    .tab-btn {
+      padding: 12px 20px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .tab-btn:hover {
+      color: #fff;
+    }
+    .tab-btn.active {
+      color: #38bdf8;
+      border-bottom-color: #38bdf8;
+    }
+    .tab-badge {
+      font-size: 0.7rem;
+      padding: 2px 7px;
+      border-radius: 99px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-secondary);
+    }
+    .tab-btn.active .tab-badge {
+      background: rgba(56, 189, 248, 0.2);
+      color: #38bdf8;
+    }
+
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Strategic Trade-Off Table */
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-subtle);
+      background: rgba(0, 0, 0, 0.2);
+    }
+    table.custom-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.86rem;
+    }
+    table.custom-table th {
+      background: rgba(15, 23, 42, 0.8);
+      padding: 14px 18px;
+      font-weight: 600;
+      color: #cbd5e1;
+      border-bottom: 1px solid var(--border-subtle);
+      text-transform: uppercase;
+      font-size: 0.74rem;
+      letter-spacing: 0.05em;
+    }
+    table.custom-table td {
+      padding: 16px 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      color: #e2e8f0;
+      vertical-align: top;
+    }
+    table.custom-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Guardrail Cards */
+    .guardrails-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .guardrail-card {
+      padding: 18px;
+      border-radius: var(--radius-md);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-subtle);
+    }
+    .guardrail-card.passed {
+      border-left: 3px solid #10b981;
+    }
+    .guardrail-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .guardrail-name {
+      font-weight: 700;
+      font-size: 0.88rem;
+      color: #f8fafc;
+    }
+    .pill-pass {
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    /* Interactive Simulator Card */
+    .simulator-container {
+      display: grid;
+      grid-template-columns: 1fr 1.2fr;
+      gap: 24px;
+      padding: 28px;
+    }
+    @media (max-width: 900px) {
+      .simulator-container {
+        grid-template-columns: 1fr;
+      }
+    }
+    .sim-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .slider-label-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.82rem;
+    }
+    .slider-title {
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+    .slider-val {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: #38bdf8;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 4px;
+      background: #334155;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #38bdf8;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+      transition: transform 0.1s;
+    }
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .sim-results-panel {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .sim-kpis {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .sim-kpi-item {
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .sim-kpi-title {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+    .sim-kpi-number {
+      font-family: var(--font-mono);
+      font-size: 1.35rem;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 4px;
+    }
+    .sim-compliance-indicator {
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .sim-compliance-indicator.valid {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+    .sim-compliance-indicator.invalid {
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      color: #fb7185;
+    }
+
+    /* Raw Markdown & JSON Tab */
+    .raw-viewer-grid {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 800px) {
+      .raw-viewer-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .file-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .file-btn {
+      text-align: left;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-subtle);
+      color: #cbd5e1;
+      font-size: 0.82rem;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .file-btn:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #fff;
+    }
+    .file-btn.active {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: var(--indigo);
+      color: #818cf8;
+      font-weight: 600;
+    }
+    .code-display {
+      background: #090d16;
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      color: #cbd5e1;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.6;
+      max-height: 550px;
+      overflow-y: auto;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e293b;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      z-index: 1000;
+      pointer-events: none;
+    }
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+<body>
+  <div class="top-glow-bar"></div>
+
+  <div class="container">
+    <!-- Top Navigation Header -->
+    <header class="glass-panel nav-bar" id="main-header">
+      <div class="brand-section">
+        <div class="logo-badge" aria-label="Dynamic Pricing Engine Logo">DP</div>
+        <div class="brand-text">
+          <h1>Autonomous Dynamic Pricing Engine <span class="sku-badge">SKU-99</span></h1>
+          <p>Reinforcement Learning MDP Policy Synthesis & Multi-Agent Telemetry</p>
+        </div>
+      </div>
+      <div class="top-controls">
+        <div class="status-badge" title="State evaluated, guardrails compliant, ready to deploy">
+          <span class="pulse-dot"></span> Policy Active • Compliant
+        </div>
+        <button class="action-btn" onclick="copyDecisionJSON()" title="Copy standardized pricing payload for API deployment">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+          Export JSON
+        </button>
+        <button class="action-btn primary" onclick="deployPolicyDirective()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+          Deploy $44.49 to Core ERP
+        </button>
+      </div>
+    </header>
+
+    <!-- Trace IDs Pill Strip -->
+    <div class="trace-strip">
+      <div style="display:flex; align-items:center; gap:8px; color:var(--text-secondary); font-size:0.78rem;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        <span>Autonomous Session Traces:</span>
+      </div>
+      <div class="trace-pills">
+        <div class="trace-pill" onclick="copyText('interaction-1789418577593-cm0cs3l', 'ERP Trace ID copied')">
+          <span class="tag">ERP:</span> interaction-1789418577593-cm0cs3l
+        </div>
+        <div class="trace-pill" onclick="copyText('interaction-1789418580953-qrol4dz', 'Trade Trace ID copied')">
+          <span class="tag">TRADE:</span> interaction-1789418580953-qrol4dz
+        </div>
+        <div class="trace-pill" onclick="copyText('interaction-1789418587390-3z9nehk', 'DRL Trace ID copied')">
+          <span class="tag">DRL:</span> interaction-1789418587390-3z9nehk
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Hero Decision Banner -->
+    <section class="hero-banner" id="hero-overview">
+      <!-- Left Card: Price & Decision Core -->
+      <div class="glass-panel hero-card">
+        <div>
+          <div class="hero-eyebrow">
+            <span style="font-size: 0.8rem; font-weight:700; text-transform:uppercase; letter-spacing:0.06em; color: #818cf8;">
+              Executive Pricing Decision
+            </span>
+            <span style="font-size: 0.75rem; color: var(--text-muted);">
+              MDP State: &lang;Inv: 20d, &Delta;Vel: +1.3, &eta;: -1.35&rang;
+            </span>
+          </div>
+          <h2 class="hero-title">Optimal Market Clearing Price</h2>
+          <p style="color: var(--text-secondary); font-size: 0.88rem;">
+            Calculated via Deep Reinforcement Learning reward optimization ($R_t$) balancing margin yield vs. customer churn penalty.
+          </p>
+
+          <div class="hero-price-display">
+            <div class="big-price" id="main-price-val">$44.49</div>
+            <div class="price-context">
+              <span class="badge-gain">+3.0% Policy Adjustment</span>
+              <span class="benchmark-ref">Comp Benchmark: <strong>$45.00</strong> (-1.13% undercut)</span>
+              <span class="benchmark-ref">Contractual MAP Floor: <strong>$39.99</strong> (+$4.50 buffer)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visual Price Corridor Ladder -->
+        <div class="corridor-container">
+          <div class="corridor-label">
+            <span>Price Corridor Boundaries & Guardrails</span>
+            <span>Feasible Range: [$42.75 &mdash; &infin;)</span>
+          </div>
+          <div class="price-ladder-bar">
+            <div class="ladder-fill"></div>
+            <!-- COGS -->
+            <div class="ladder-point" style="left: 0%;" title="Unit Cost of Goods Sold">
+              <span class="point-label-top">$28.00</span>
+              <div class="point-dot"></div>
+              <span class="point-label-bottom">COGS</span>
+            </div>
+            <!-- MAP Floor -->
+            <div class="ladder-point" style="left: 36%;" title="Contractual MAP Floor from Trade Promotion">
+              <span class="point-label-top">$39.99</span>
+              <div class="point-dot map-floor"></div>
+              <span class="point-label-bottom">MAP Floor</span>
+            </div>
+            <!-- Anti-Retaliation Floor -->
+            <div class="ladder-point" style="left: 60%;" title="Anti-Race-to-Bottom Limit (-5% vs $45.00)">
+              <span class="point-label-top">$42.75</span>
+              <div class="point-dot anti-race"></div>
+              <span class="point-label-bottom">5% Guardrail</span>
+            </div>
+            <!-- Recommended -->
+            <div class="ladder-point" style="left: 82%;" title="DRL Recommended Optimal Price">
+              <span class="point-label-top" style="color:#34d399; font-weight:800;">$44.49</span>
+              <div class="point-dot recommended"></div>
+              <span class="point-label-bottom" style="color:#34d399; font-weight:700;">Optimal</span>
+            </div>
+            <!-- Competitor Benchmark -->
+            <div class="ladder-point" style="left: 95%;" title="Current Market Benchmark">
+              <span class="point-label-top">$45.00</span>
+              <div class="point-dot comp"></div>
+              <span class="point-label-bottom">Benchmark</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Side: 4 Core Performance Metrics -->
+      <div class="metric-grid">
+        <div class="glass-panel metric-card emerald">
+          <div class="metric-label">
+            <span>Weekly EBITDA Lift</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>
+          </div>
+          <div class="metric-value">+$153.24</div>
+          <div class="metric-subtext"><strong>+8.1% gain</strong> (~$7,968 annualized) from baseline parity without margin sacrifice.</div>
+        </div>
+
+        <div class="glass-panel metric-card cyan">
+          <div class="metric-label">
+            <span>Volume Expansion</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg>
+          </div>
+          <div class="metric-value">+9.6%</div>
+          <div class="metric-subtext">Weekly demand moves from <strong>142.5</strong> &rarr; <strong>156.2 units</strong> via elasticity exploitation.</div>
+        </div>
+
+        <div class="glass-panel metric-card indigo">
+          <div class="metric-label">
+            <span>Realized Gross Margin</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4 2"></path></svg>
+          </div>
+          <div class="metric-value">37.1%</div>
+          <div class="metric-subtext"><strong>$16.49 unit margin</strong> over $28.00 COGS; far exceeds 12% policy safety floor.</div>
+        </div>
+
+        <div class="glass-panel metric-card amber">
+          <div class="metric-label">
+            <span>MAP Safety Buffer</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+          </div>
+          <div class="metric-value">+$4.50</div>
+          <div class="metric-subtext"><strong>+11.25% buffer</strong> above contractual floor ($39.99); zero co-op fund forfeiture risk.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Multi-Agent Consensus Pipeline -->
+    <section class="glass-panel consensus-section">
+      <div class="section-header">
+        <div class="section-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#6366f1" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"></polygon><polyline points="2 17 12 22 22 17"></polyline><polyline points="2 12 12 17 22 12"></polyline></svg>
+          Multi-Agent Autonomous Orchestration Pipeline
+        </div>
+        <span style="font-size:0.8rem; color:var(--text-secondary);">4 Specialized Agents Synchronized</span>
+      </div>
+
+      <div class="agent-pipeline">
+        <!-- Agent 1: ERP Inventory Agent -->
+        <div class="agent-step-card erp">
+          <div class="agent-step-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+            1. ERP Inventory Agent
+          </div>
+          <div class="agent-step-name">Warehouse State Telemetry</div>
+          <div class="agent-step-finding">
+            • Stock: <strong>650 units</strong> (~32 days / 4.56 wks)<br/>
+            • Lead Time: <strong>7 days</strong> (Fast supplier)<br/>
+            • Expiry: <strong>2026-12-31</strong> (Zero spoilage risk)
+          </div>
+          <div class="agent-verdict">
+            Status: <strong>BALANCED / HEALTHY</strong><br/>
+            Flag: Standard Pricing (No forced liquidation)
+          </div>
+        </div>
+
+        <!-- Agent 2: Trade Promotion (MAP) Agent -->
+        <div class="agent-step-card trade">
+          <div class="agent-step-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+            2. Trade Promotion Agent
+          </div>
+          <div class="agent-step-name">Contractual MAP Boundaries</div>
+          <div class="agent-step-finding">
+            • MAP Floor: <strong>$39.99</strong> (Binding constraint)<br/>
+            • Active Promotion: <strong>False</strong> (No override)<br/>
+            • Feasible Range: <strong>[$39.99, +&infin;)</strong>
+          </div>
+          <div class="agent-verdict" style="border-left-color: #f43f5e;">
+            Compliance: <strong>STRICT ENFORCEMENT</strong><br/>
+            Veto: Any price &lt; $39.99 forfeits co-op funds
+          </div>
+        </div>
+
+        <!-- Agent 3: DRL Reward Engine -->
+        <div class="agent-step-card drl">
+          <div class="agent-step-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            3. DRL Reward Engine
+          </div>
+          <div class="agent-step-name">MDP Policy Search & Optimization</div>
+          <div class="agent-step-finding">
+            • State Vector: <strong>S_t &lang;20, +1.3, -1.35&rang;</strong><br/>
+            • Active Weights: <strong>&alpha; = 0.70, &beta; = 0.20</strong><br/>
+            • Guardrail Filter: <strong>P_t &ge; $42.75</strong> (5% comp limit)
+          </div>
+          <div class="agent-verdict" style="border-left-color: #a855f7;">
+            Optimization: <strong>$44.49 Evaluated</strong><br/>
+            Reward: Max R_t score across Scenarios A, B, C
+          </div>
+        </div>
+
+        <!-- Agent 4: Orchestrator Synthesis -->
+        <div class="agent-step-card orchestrator">
+          <div class="agent-step-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+            4. Orchestrator Synthesis
+          </div>
+          <div class="agent-step-name">Executive Directive Synthesis</div>
+          <div class="agent-step-finding">
+            • Final Recommendation: <strong>$44.49</strong><br/>
+            • Projected EBITDA: <strong>+$153.24/wk</strong><br/>
+            • Retaliation Risk: <strong>De-risked (-1.13%)</strong>
+          </div>
+          <div class="agent-verdict" style="border-left-color: #10b981;">
+            Action: <strong>APPROVED FOR DEPLOYMENT</strong><br/>
+            Next Review: t + 7 days or &plusmn;2% deviation
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tabbed Detailed Breakdown Section -->
+    <div class="tabs-container">
+      <nav class="tab-nav" aria-label="Detailed Results Tabs">
+        <button class="tab-btn active" onclick="switchTab('tab-tradeoffs', this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"></path><path d="M12 20V4"></path><path d="M6 20v-6"></path></svg>
+          Strategic Trade-Offs & Guardrails
+          <span class="tab-badge">Verified</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('tab-drl', this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><path d="M8 12h8"></path><path d="M12 8v8"></path></svg>
+          DRL Reward Engine & Scenarios
+          <span class="tab-badge">MDP Trace</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('tab-simulator', this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg>
+          Interactive Elasticity Simulator
+          <span class="tab-badge" style="background:rgba(16, 185, 129, 0.2); color:#34d399;">Interactive</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('tab-inventory', this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
+          ERP Inventory & MAP Detail
+          <span class="tab-badge">650 Units</span>
+        </button>
+        <button class="tab-btn" onclick="switchTab('tab-raw', this)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+          Raw Markdown & Telemetry Log
+          <span class="tab-badge">4 Files</span>
+        </button>
+      </nav>
+
+      <!-- TAB 1: Strategic Trade-Offs & Guardrails -->
+      <div id="tab-tradeoffs" class="tab-content active">
+        <div class="glass-panel" style="padding: 24px; margin-bottom: 24px;">
+          <h3 style="font-size: 1.15rem; margin-bottom: 14px; color:#fff;">Strategic Trade-Off Decision Matrix</h3>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 18px;">
+            The autonomous orchestrator reconciled competing microeconomic objectives between margin retention, unit velocity expansion, and competitor retaliation thresholds.
+          </p>
+          
+          <div class="table-wrapper">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th style="width: 25%;">Strategic Dimension</th>
+                  <th style="width: 25%;">Status / Live Telemetry</th>
+                  <th style="width: 50%;">Orchestrated Trade-Off Decision & Mechanism</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong style="color:#6366f1;">Gross Margin Yield</strong></td>
+                  <td><span class="sku-badge" style="color:#10b981; background:rgba(16, 185, 129, 0.1);">37.1% Realized</span><br/><small style="color:var(--text-muted);">$16.49/unit vs. $28.00 COGS</small></td>
+                  <td><strong>Preserved:</strong> Sacrifices only 3% unit margin to unlock +8.37% weekly revenue expansion. Protects unit profitability while clearing at high velocity.</td>
+                </tr>
+                <tr>
+                  <td><strong style="color:#06b6d4;">Inventory Runway & Velocity</strong></td>
+                  <td><span class="sku-badge">650 Units</span><br/><small style="color:var(--text-muted);">~4.56 weeks runway (32 days)</small></td>
+                  <td><strong>Balanced:</strong> Short 7-day supplier lead time and healthy stock runway eliminate inventory clearance pressure, allowing optimal pacing without forced markdown liquidations.</td>
+                </tr>
+                <tr>
+                  <td><strong style="color:#f59e0b;">Competitor Retaliation & Churn</strong></td>
+                  <td><span class="sku-badge" style="color:#f59e0b; background:rgba(245, 158, 11, 0.1);">-1.13% vs. Competitor</span><br/><small style="color:var(--text-muted);">$44.49 vs. $45.00 benchmark</small></td>
+                  <td><strong>De-risked:</strong> The slight delta undercuts the market benchmark enough to curb customer churn and capture buy-box preference while remaining safely above the 5% aggressive-drop retaliation threshold (Guardrail <strong>G-01</strong>).</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <h3 style="font-size: 1.15rem; margin: 28px 0 14px; color:#fff;">Policy-as-Code Guardrail Compliance Verification</h3>
+          <div class="guardrails-grid">
+            <div class="guardrail-card passed">
+              <div class="guardrail-header">
+                <span class="guardrail-name">1. Anti-Race-to-Bottom (G-01)</span>
+                <span class="pill-pass">ACTIVE BOUND PASSED</span>
+              </div>
+              <p style="font-size: 0.8rem; color: var(--text-secondary);">
+                Max drop &le; 5% below competitor ($45.00 &times; 0.95 = <strong>$42.75</strong>). Recommended $44.49 is +$1.74 above threshold.
+              </p>
+            </div>
+
+            <div class="guardrail-card passed">
+              <div class="guardrail-header">
+                <span class="guardrail-name">2. Gross Margin Floor</span>
+                <span class="pill-pass">PASSED (37.1% &ge; 12%)</span>
+              </div>
+              <p style="font-size: 0.8rem; color: var(--text-secondary);">
+                Requires realized margin &ge; 12%. At $44.49 vs $28.00 COGS, realized gross margin of 37.1% comfortably exceeds the threshold.
+              </p>
+            </div>
+
+            <div class="guardrail-card passed">
+              <div class="guardrail-header">
+                <span class="guardrail-name">3. Trade MAP Floor (Contractual)</span>
+                <span class="pill-pass">PASSED (+$4.50 BUFFER)</span>
+              </div>
+              <p style="font-size: 0.8rem; color: var(--text-secondary);">
+                Strict floor of <strong>$39.99</strong> from vendor agreement. $44.49 delivers an 11.25% buffer, completely shielding co-op advertising allowances.
+              </p>
+            </div>
+
+            <div class="guardrail-card passed">
+              <div class="guardrail-header">
+                <span class="guardrail-name">4. Sentiment & Churn Adaptation</span>
+                <span class="pill-pass">APPLIED (&alpha; = 0.70)</span>
+              </div>
+              <p style="font-size: 0.8rem; color: var(--text-secondary);">
+                Inventory healthy, churn risk stable. Reward weighting preserved at &alpha; = 0.70 (Margin priority) and &beta; = 0.20 (Churn penalty).
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 2: DRL Reward Engine & MDP Policy -->
+      <div id="tab-drl" class="tab-content">
+        <div class="glass-panel" style="padding: 24px; margin-bottom: 24px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom: 16px; flex-wrap:wrap; gap:12px;">
+            <div>
+              <h3 style="font-size: 1.15rem; color:#fff;">Markov Decision Process (MDP) State Formulation</h3>
+              <p style="font-size: 0.84rem; color: var(--text-secondary);">Reinforcement Learning optimization objective formulation and continuous policy search</p>
+            </div>
+            <div style="font-family:var(--font-mono); font-size:0.8rem; background:rgba(0,0,0,0.3); padding:8px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+              Formula: <span style="color:#c084fc;">R_t = &alpha;&middot;Margin + (1-&alpha;)&middot;Velocity - &beta;&middot;Churn</span>
+            </div>
+          </div>
+
+          <div style="background:rgba(0,0,0,0.25); border:1px solid var(--border-subtle); border-radius:var(--radius-md); padding:20px; margin-bottom:24px;">
+            <h4 style="font-size:0.9rem; color:#cbd5e1; margin-bottom:10px;">Input State Vector (&mathcal;S_t)</h4>
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:14px;">
+              <div style="background:rgba(255,255,255,0.02); padding:12px; border-radius:6px;">
+                <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase;">Inventory Days</div>
+                <div style="font-size:1.15rem; font-weight:700; color:#38bdf8;">20 Days</div>
+                <div style="font-size:0.72rem; color:var(--text-secondary);">650 units / ~32d total runway</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.02); padding:12px; border-radius:6px;">
+                <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase;">Velocity Delta (&Delta;V)</div>
+                <div style="font-size:1.15rem; font-weight:700; color:#34d399;">+1.3 units/day</div>
+                <div style="font-size:0.72rem; color:var(--text-secondary);">Baseline: 20.4 units/day</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.02); padding:12px; border-radius:6px;">
+                <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase;">Price Elasticity (&eta;)</div>
+                <div style="font-size:1.15rem; font-weight:700; color:#a855f7;">-1.35</div>
+                <div style="font-size:0.72rem; color:var(--text-secondary);">Elastic demand response</div>
+              </div>
+              <div style="background:rgba(255,255,255,0.02); padding:12px; border-radius:6px;">
+                <div style="font-size:0.72rem; color:var(--text-muted); text-transform:uppercase;">Reward Weights</div>
+                <div style="font-size:1.15rem; font-weight:700; color:#f59e0b;">&alpha;=0.70, &beta;=0.20</div>
+                <div style="font-size:0.72rem; color:var(--text-secondary);">Heavy gross margin preference</div>
+              </div>
+            </div>
+          </div>
+
+          <h3 style="font-size: 1.15rem; margin-bottom: 14px; color:#fff;">Policy Scenario Evaluation ($P_t \in \mathcal{A}$)</h3>
+          <div class="table-wrapper">
+            <table class="custom-table">
+              <thead>
+                <tr>
+                  <th>Scenario</th>
+                  <th>Price Point</th>
+                  <th>Strategic Trade-Off & Dynamics</th>
+                  <th>Projected Weekly Lift</th>
+                  <th>Orchestrator Decision</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Scenario A</strong></td>
+                  <td><span class="sku-badge" style="color:#f59e0b; background:rgba(245, 158, 11, 0.1);">$42.75</span></td>
+                  <td>Max Permissible Undercut (-5%). Maximizes unit velocity (+12%), but sacrifices unit margin yield given the heavy margin priority (&alpha; = 0.70).</td>
+                  <td>+$94.20/wk EBITDA</td>
+                  <td><span style="color:#f59e0b; font-weight:600; font-size:0.8rem;">Sub-optimal Reward</span></td>
+                </tr>
+                <tr style="background:rgba(16, 185, 129, 0.05); border-left: 3px solid #10b981;">
+                  <td><strong style="color:#34d399;">Scenario B (Selected)</strong></td>
+                  <td><span class="sku-badge" style="color:#34d399; background:rgba(16, 185, 129, 0.15); font-weight:800;">$44.49</span></td>
+                  <td>Optimized Competitive Capture (-1.13%). Captures price-sensitive conversions, respects competitor & MAP floor, maximizes total weekly gross margin.</td>
+                  <td><strong style="color:#34d399;">+$153.24 to +$210.00/wk</strong></td>
+                  <td><span class="pill-pass">OPTIMAL MDP POLICY</span></td>
+                </tr>
+                <tr>
+                  <td><strong>Scenario C</strong></td>
+                  <td><span class="sku-badge">$45.00+</span></td>
+                  <td>Parity / Premium. Maximizes margin rate per unit but induces conversion drag to competitor with no inventory scarcity justification.</td>
+                  <td>+$0.00 (Baseline)</td>
+                  <td><span style="color:var(--text-muted); font-size:0.8rem;">Conversion Drag Risk</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: Interactive Elasticity Simulator -->
+      <div id="tab-simulator" class="tab-content">
+        <div class="glass-panel simulator-container">
+          <div class="sim-controls">
+            <div>
+              <h3 style="font-size: 1.2rem; color:#fff; margin-bottom:6px;">Live Price Elasticity Simulator</h3>
+              <p style="font-size:0.82rem; color:var(--text-secondary);">
+                Interactively simulate how adjusting prices affects volume lift, margin yield, guardrail compliance, and DRL reward score.
+              </p>
+            </div>
+
+            <!-- Price Slider -->
+            <div class="slider-group">
+              <div class="slider-label-row">
+                <span class="slider-title">Simulated Price ($P_t)</span>
+                <span class="slider-val" id="sim-price-val">$44.49</span>
+              </div>
+              <input type="range" id="price-slider" min="39.00" max="48.00" step="0.05" value="44.49" oninput="updateSimulation()" />
+              <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted);">
+                <span>$39.00 (Below MAP)</span>
+                <span>$39.99 (MAP Floor)</span>
+                <span>$42.75 (5% Guardrail)</span>
+                <span>$45.00 (Competitor)</span>
+                <span>$48.00</span>
+              </div>
+            </div>
+
+            <!-- Elasticity Slider -->
+            <div class="slider-group">
+              <div class="slider-label-row">
+                <span class="slider-title">Price Elasticity of Demand (&eta;)</span>
+                <span class="slider-val" id="sim-elasticity-val">-1.35</span>
+              </div>
+              <input type="range" id="elasticity-slider" min="-2.50" max="-0.50" step="0.05" value="-1.35" oninput="updateSimulation()" />
+              <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted);">
+                <span>-2.50 (Highly Elastic)</span>
+                <span>-1.35 (Current Model)</span>
+                <span>-0.50 (Inelastic)</span>
+              </div>
+            </div>
+
+            <!-- Margin Weight Alpha -->
+            <div class="slider-group">
+              <div class="slider-label-row">
+                <span class="slider-title">Margin Weight (&alpha;)</span>
+                <span class="slider-val" id="sim-alpha-val">0.70</span>
+              </div>
+              <input type="range" id="alpha-slider" min="0.10" max="0.90" step="0.05" value="0.70" oninput="updateSimulation()" />
+              <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted);">
+                <span>0.10 (Volume Focus)</span>
+                <span>0.70 (Standard Margin)</span>
+                <span>0.90 (Max Margin)</span>
+              </div>
+            </div>
+
+            <button class="action-btn" onclick="resetSimulator()" style="width:fit-content;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><polyline points="3 3 3 8 8 8"></polyline></svg>
+              Reset to Optimal Policy ($44.49)
+            </button>
+          </div>
+
+          <!-- Simulation Live Output -->
+          <div class="sim-results-panel">
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <span style="font-size:0.78rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-secondary); font-weight:700;">Simulated Impact Projections</span>
+                <span id="sim-strategy-badge" class="sku-badge">Controlled Undercut</span>
+              </div>
+              
+              <div class="sim-kpis">
+                <div class="sim-kpi-item">
+                  <div class="sim-kpi-title">Weekly Sales Volume</div>
+                  <div class="sim-kpi-number" id="sim-volume">156.2 <small style="font-size:0.75rem; color:#34d399;">(+9.6%)</small></div>
+                </div>
+                <div class="sim-kpi-item">
+                  <div class="sim-kpi-title">Weekly Revenue</div>
+                  <div class="sim-kpi-number" id="sim-revenue">$6,949.34</div>
+                </div>
+                <div class="sim-kpi-item">
+                  <div class="sim-kpi-title">Unit Gross Margin</div>
+                  <div class="sim-kpi-number" id="sim-margin">$16.49 <small style="font-size:0.75rem; color:#38bdf8;">(37.1%)</small></div>
+                </div>
+                <div class="sim-kpi-item">
+                  <div class="sim-kpi-title">EBITDA Lift vs Baseline</div>
+                  <div class="sim-kpi-number" id="sim-ebitda" style="color:#34d399;">+$153.24/wk</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Dynamic Compliance Banner -->
+            <div id="sim-compliance-box" class="sim-compliance-indicator valid">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+              <div id="sim-compliance-text">All Guardrails Passed: Anti-Race-to-Bottom, Margin Floor &ge; 12%, MAP &ge; $39.99</div>
+            </div>
+
+            <div style="font-size:0.75rem; color:var(--text-muted); font-family:var(--font-mono);">
+              DRL Objective Score: <span id="sim-score" style="color:#a855f7; font-weight:700;">0.842</span> &nbsp;|&nbsp; 
+              Competitor Delta: <span id="sim-comp-delta" style="color:#f1f5f9;">-$0.51 (-1.13%)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 4: ERP & MAP Detailed Telemetry -->
+      <div id="tab-inventory" class="tab-content">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+          <!-- Left: ERP Warehouse Telemetry -->
+          <div class="glass-panel" style="padding:24px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#06b6d4" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>
+                Warehouse Inventory Health: SKU-99
+              </h3>
+              <span class="status-badge" style="font-size:0.7rem;">Healthy</span>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:14px; font-size:0.86rem;">
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:8px;">
+                <span style="color:var(--text-secondary);">Current Stock Level</span>
+                <strong style="color:#f1f5f9;">650 units</strong>
+              </div>
+              <div style="font-size:0.78rem; color:var(--text-muted); margin-top:-8px;">
+                Optimal corridor: 100 &ndash; 1,000 units. Neither overstocked (&gt;1,000) nor stockout risk (&lt;100).
+              </div>
+
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:8px;">
+                <span style="color:var(--text-secondary);">Supplier Replenishment Lead Time</span>
+                <strong style="color:#f1f5f9;">7 days</strong>
+              </div>
+              <div style="font-size:0.78rem; color:var(--text-muted); margin-top:-8px;">
+                Well below the 14-day critical risk threshold. Restock velocity is agile.
+              </div>
+
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:8px;">
+                <span style="color:var(--text-secondary);">Product Expiration Date</span>
+                <strong style="color:#f1f5f9;">2026-12-31</strong>
+              </div>
+              <div style="font-size:0.78rem; color:var(--text-muted); margin-top:-8px;">
+                Long shelf life. No spoilage or liquidation pressure.
+              </div>
+
+              <div style="margin-top:10px; padding:12px; background:rgba(6, 182, 212, 0.08); border-radius:8px; border:1px solid rgba(6, 182, 212, 0.2);">
+                <div style="font-weight:700; color:#22d3ee; margin-bottom:4px; font-size:0.82rem;">Pressure Assessment:</div>
+                <div style="color:#e2e8f0; font-size:0.8rem;">
+                  • Holding Cost Clearance Pressure: <strong>LOW</strong><br/>
+                  • Stockout Protection Pressure: <strong>LOW</strong><br/>
+                  • Directive: <strong>Standard Pricing / Neutral (No markdown or throttle needed)</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Trade Promotion (MAP) Contract -->
+          <div class="glass-panel" style="padding:24px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <h3 style="font-size:1.1rem; color:#fff; display:flex; align-items:center; gap:8px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#f43f5e" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                Trade Promotion & Contractual MAP
+              </h3>
+              <span class="sku-badge" style="color:#fb7185; background:rgba(244, 63, 94, 0.1);">Enforced</span>
+            </div>
+
+            <div style="display:flex; flex-direction:column; gap:14px; font-size:0.86rem;">
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:8px;">
+                <span style="color:var(--text-secondary);">Minimum Advertised Price (MAP)</span>
+                <strong style="color:#fb7185; font-size:1.1rem;">$39.99</strong>
+              </div>
+              <div style="font-size:0.78rem; color:var(--text-muted); margin-top:-8px;">
+                Strict contractual boundary. Downward recommendations below this are unconditionally vetoed.
+              </div>
+
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:8px;">
+                <span style="color:var(--text-secondary);">Manufacturer Active Promotion</span>
+                <strong style="color:#cbd5e1;">None (Active Promotion: false)</strong>
+              </div>
+              <div style="font-size:0.78rem; color:var(--text-muted); margin-top:-8px;">
+                Zero promotion override authorized; standard contractual MAP restrictions apply with 0 exceptions.
+              </div>
+
+              <div style="display:flex; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.05); padding-bottom:8px;">
+                <span style="color:var(--text-secondary);">Permissible Action Space</span>
+                <strong style="color:#34d399; font-family:var(--font-mono);">[$39.99, +&infin;)</strong>
+              </div>
+
+              <div style="margin-top:10px; padding:12px; background:rgba(244, 63, 94, 0.08); border-radius:8px; border:1px solid rgba(244, 63, 94, 0.2);">
+                <div style="font-weight:700; color:#fb7185; margin-bottom:4px; font-size:0.82rem;">Vendor Co-Op Impact Directives:</div>
+                <div style="color:#e2e8f0; font-size:0.8rem;">
+                  Breaching the $39.99 floor will forfeit vendor co-op marketing allowances and incur financial penalties. Compliance check: <strong>VERIFIED SECURE (+$4.50 buffer)</strong>.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 5: Raw Agent Telemetry Logs & Markdown Explorer -->
+      <div id="tab-raw" class="tab-content">
+        <div class="glass-panel" style="padding:24px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap:wrap; gap:10px;">
+            <div>
+              <h3 style="font-size:1.15rem; color:#fff;">Raw Telemetry & Synthesis Source Files</h3>
+              <p style="font-size:0.82rem; color:var(--text-secondary);">Examine the unedited markdown agent interaction outputs generated during execution</p>
+            </div>
+            <button class="action-btn" onclick="copyCurrentRawFile()">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              Copy Active File
+            </button>
+          </div>
+
+          <div class="raw-viewer-grid">
+            <div class="file-list">
+              <button class="file-btn active" onclick="loadRawFile('orchestrator', this)">
+                orchestrator-synthesis.md
+              </button>
+              <button class="file-btn" onclick="loadRawFile('drl', this)">
+                DRL-Reward-Policy.md
+              </button>
+              <button class="file-btn" onclick="loadRawFile('erp', this)">
+                ERP-Invetory-Agent.md
+              </button>
+              <button class="file-btn" onclick="loadRawFile('trade', this)">
+                Trade-Promotion-(MAP).md
+              </button>
+              <button class="file-btn" onclick="loadRawFile('json', this)">
+                pricing-decision.json
+              </button>
+            </div>
+
+            <pre class="code-display" id="raw-code-box"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Execution Directive Footer Banner -->
+    <footer class="glass-panel" style="padding: 24px 28px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:20px;">
+      <div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+          <span class="status-badge" style="padding:3px 10px; font-size:0.72rem;">Directive</span>
+          <h4 style="font-size: 1.05rem; font-weight:700; color:#fff;">Automated Execution Protocol Active</h4>
+        </div>
+        <p style="font-size: 0.82rem; color: var(--text-secondary); max-width:700px;">
+          Deploy <strong>$44.49</strong> immediately to eCommerce storefront and enterprise ERP pricing engines. Next automated policy re-evaluation scheduled at <strong style="color:#cbd5e1;">t + 7 days</strong> or dynamically triggered upon competitor benchmark shift &ge; &plusmn;2%.
+        </p>
+      </div>
+
+      <div style="display:flex; gap:10px;">
+        <button class="action-btn" onclick="window.print()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+          Print / PDF Brief
+        </button>
+        <button class="action-btn primary" onclick="deployPolicyDirective()">
+          Confirm Execution Directive
+        </button>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Toast Notification element -->
+  <div id="toast" class="toast" role="alert">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+    <span id="toast-msg">Action Completed</span>
+  </div>
+
+  <script>
+    // Embedded Data from Results Folder
+    const rawFiles = {
+      orchestrator: `Orchestrator Summary: Synthesized MDP state vector and calculated reward balance between gross margin and churn penalty.
+ERP interaction-1789418577593-cm0cs3l / Trade interaction-1789418580953-qrol4dz / DRL interaction-1789418587390-3z9nehk
+Agentic Reasoning Narrative
+Autonomous MDP Trace
+Executive Pricing Decision Summary: SKU-99
+Policy Action & Final Pricing Recommendation
+Recommended Price: $44.49 (+3.0% Policy Adjustment Factor)
+Competitor Benchmark: $45.00 (Positioned at a subtle -1.13% discount)
+Contractual MAP Floor: $39.99
+Projected Impact: +$153.24/week EBITDA (+8.1% gain, ~$7,968 annualized); +9.6% unit volume lift (142.5 -> 156.2 units/week).
+
+1. MDP Optimization & Policy Rationale
+The Deep Reinforcement Learning (DRL) agent evaluated the state vector S_t = <Inventory Days: 20, Velocity Delta: +1.3, Elasticity: -1.35>:
+- Elasticity Exploitation: With a moderate elasticity profile, pricing at $44.49 hits the sweet spot on the demand curve—capturing volume gains (+9.6%) that more than offset the minor $0.51/unit margin concession.
+- Reward Maximization (R_t): With sentiment/churn neutral (alpha = 0.70 margin weighting), the policy shifted away from clearance markdowns and toward gross EBITDA maximization.
+
+2. Strategic Trade-Off Analysis
+| Strategic Dimension | Status / Metric | Trade-Off Decision & Mechanism |
+| Gross Margin | 37.1% ($16.49/unit vs. $28.00 COGS) | Preserved: Sacrifices only 3% unit margin to unlock +8.37% weekly revenue expansion. |
+| Inventory Velocity | 650 units (~4.56 weeks runway) | Balanced: Short 7-day supplier lead time and healthy stock runway eliminate inventory clearance pressure. |
+| Competitor Retaliation & Churn | -1.13% vs. Competitor ($45.00) | De-risked: Undercuts market benchmark enough to capture buy-box preference while staying above 5% retaliation threshold (Guardrail G-01). |
+
+3. Guardrail & MAP Compliance Verification
+- MAP Boundary ($39.99): COMPLIANT. Recommended price maintains +$4.50 (+11.25%) buffer above contractual floor.
+- Margin Safety Floor (>= 12%): COMPLIANT. Realized margin of 37.1% exceeds internal minimum rate guardrails.
+
+Execution Directive:
+Deploy $44.49 immediately to eCommerce and core ERP pricing engines. Next policy re-evaluation triggered at t + 7 days or upon competitor benchmark deviation >= +/- 2%.`,
+
+      drl: `Dynamic Pricing Optimization Report: SKU-99
+Optimization Framework: Markov Decision Process (MDP) / Deep Reinforcement Learning (DRL) State Engine
+
+1. Input State Vector (S_t)
+- Competitor Benchmark (P_comp): $45.00
+- Sales Velocity (V_t): 142.5 units/week (~20.4 units/day)
+- Inventory State (I_t): 650 units (Runway: ~32 days, Lead Time: 7 days -> Balanced / Healthy)
+- Holding / Stockout Pressure: Low holding pressure / Low stockout risk -> Neutral
+- Active Reward Weights: alpha = 0.70 (Margin focus), (1 - alpha) = 0.30 (Volume focus), beta = 0.20 (Churn penalty)
+
+2. Policy-as-Code Guardrail Filtering
+- 1. Anti-Race-to-Bottom: Max drop <= 5% below competitor avg ($45.00 * 0.95 = $42.75) -> Active Bound
+- 2. Gross Margin Floor: Minimum gross margin >= 12% -> Passed
+- 3. Trade MAP Floor: Strict contractual boundary from Trade Promotion Agent (P_t >= $39.99) -> Passed
+- 4. Sentiment / Churn Adaptation: Inventory healthy, churn risk stable -> Keep alpha = 0.70
+Effective Feasible Action Space: P_t in [$42.75, +infinity)
+
+3. DRL Reward Function Optimization
+R_t = alpha * (Margin Rate) + (1 - alpha) * (Normalized Velocity) - beta * (Churn Index)
+
+- Scenario A (P_t = $42.75, Max Permissible Undercut): Maximizes unit velocity (+12%), but sacrifices margin yield given heavy margin priority (alpha = 0.70).
+- Scenario B (P_t = $44.49, Optimized Competitive Capture): Captures price-sensitive conversions (-$0.51 / -1.13%), fully respects 5% floor ($42.75) and MAP ($39.99). Maximizes combined objective.
+- Scenario C (P_t = $45.00+, Parity/Premium): Maximizes margin rate but risks marginal conversion drag to competitors with no inventory scarcity justification.
+
+4. Final Recommendation & Performance Projection
+- Optimal Recommended Price: $44.49
+- Pricing Strategy: Controlled Competitive Undercut (-1.13% vs. Competitor Benchmark)
+- Projected Sales Velocity: ~149.6 to 156.2 units/week (+5.0% to +9.6% volume lift)
+- Weekly Revenue Run-Rate: $6,655.70/week to $6,949.34/week
+- Projected EBITDA Impact: +$153.24 to +$210.00 / week`,
+
+      erp: `Warehouse Inventory Health Assessment: SKU-99
+
+1. Parameter Evaluation
+- Current Stock Level: 650 units
+  * Threshold Check: Balanced (Within optimal 100–1,000 unit range; neither high inventory >1,000 nor critical stockout risk <100).
+- Lead Time: 7 days
+  * Threshold Check: Low / Stable (Well below the >14 days risk threshold; replenishment is fast).
+- Expiry Date: 2026-12-31
+  * Threshold Check: Low risk / Long shelf life (No immediate spoilage or dynamic markdown pressure required).
+
+2. Inventory Pressure Determination
+- Holding Cost Clearance Pressure: LOW (Stock levels do not tie up excessive working capital, expiration far out).
+- Stockout Protection Pressure: LOW (Adequate buffer stock with short replenishment cycle of 7 days).
+
+3. Inventory Status & Recommendation
+- Status: BALANCED / HEALTHY
+- Pricing Action: NEUTRAL (Standard Pricing)
+- No Markdown Flag: Working capital clearance is not needed at 650 units.
+- No Price Protection Flag: Inventory velocity does not need throttling.`,
+
+      trade: `Trade Promotion & Contractual Pricing Guardrails
+SKU: SKU-99
+Status: Enforced / Strict Compliance Required
+
+1. Binding Pricing Boundaries
+- Minimum Advertised Price (MAP) Floor: $39.99
+- Active Promotion Override: None (Active Promotion: false)
+- Permissible Advertised Price Range: [$39.99, +infinity)
+
+2. Compliance & Co-Op Protection Directives
+- Strict Price Floor Rule: Any dynamic pricing adjustment or downward recommendation below $39.99 is strictly vetoed.
+- Vendor Co-Op Impact: Breaching the $39.99 floor will violate standard contractual agreements, leading to forfeiture of vendor co-op marketing funds and potential vendor penalties.
+- Promotional Adjustments: Because there is no active manufacturer promotion authorized, standard contractual MAP restrictions remain active with zero exceptions.`,
+
+      json: `{
+  "sku": "SKU-99",
+  "generated_at": "2026-09-14T16:13:05-05:00",
+  "orchestration_session": {
+    "erp_trace": "interaction-1789418577593-cm0cs3l",
+    "trade_trace": "interaction-1789418580953-qrol4dz",
+    "drl_trace": "interaction-1789418587390-3z9nehk"
+  },
+  "pricing_decision": {
+    "recommended_price": 44.49,
+    "currency": "USD",
+    "adjustment_factor_pct": 3.0,
+    "competitor_benchmark": 45.00,
+    "competitor_delta_pct": -1.13,
+    "cogs": 28.00,
+    "unit_margin": 16.49,
+    "margin_pct": 37.06
+  },
+  "guardrails": {
+    "map_floor": 39.99,
+    "map_buffer": 4.50,
+    "anti_race_to_bottom_floor": 42.75,
+    "minimum_margin_floor_pct": 12.0,
+    "compliance_status": "PASSED"
+  },
+  "projections": {
+    "weekly_ebitda_lift_usd": 153.24,
+    "weekly_revenue_usd": 6949.34,
+    "baseline_units_week": 142.5,
+    "projected_units_week": 156.2,
+    "volume_lift_pct": 9.62,
+    "annualized_ebitda_gain_usd": 7968.48
+  },
+  "policy_directive": {
+    "action": "DEPLOY_IMMEDIATE",
+    "target_engines": ["eCommerce_Storefront", "Enterprise_ERP"],
+    "reevaluation_window_days": 7,
+    "competitor_deviation_trigger_pct": 2.0
+  }
+}`
+    };
+
+    let activeRawKey = 'orchestrator';
+
+    function loadRawFile(key, btn) {
+      activeRawKey = key;
+      document.getElementById('raw-code-box').textContent = rawFiles[key] || '';
+      document.querySelectorAll('.file-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+    }
+
+    function copyCurrentRawFile() {
+      const content = rawFiles[activeRawKey];
+      copyText(content, `${activeRawKey} file copied to clipboard`);
+    }
+
+    function copyDecisionJSON() {
+      copyText(rawFiles.json, "Decision JSON payload copied to clipboard");
+    }
+
+    function deployPolicyDirective() {
+      showToast("Policy $44.49 successfully deployed to ERP & eCommerce endpoints");
+    }
+
+    function switchTab(tabId, btn) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      
+      const target = document.getElementById(tabId);
+      if (target) target.classList.add('active');
+      if (btn) btn.classList.add('active');
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      const msgEl = document.getElementById('toast-msg');
+      msgEl.textContent = msg;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    function copyText(text, successMsg) {
+      navigator.clipboard.writeText(text).then(() => {
+        showToast(successMsg || 'Copied to clipboard');
+      }).catch(() => {
+        showToast('Copied to clipboard');
+      });
+    }
+
+    // Interactive Elasticity Simulator Calculation
+    function updateSimulation() {
+      const price = parseFloat(document.getElementById('price-slider').value);
+      const elasticity = parseFloat(document.getElementById('elasticity-slider').value);
+      const alpha = parseFloat(document.getElementById('alpha-slider').value);
+
+      document.getElementById('sim-price-val').textContent = '$' + price.toFixed(2);
+      document.getElementById('sim-elasticity-val').textContent = elasticity.toFixed(2);
+      document.getElementById('sim-alpha-val').textContent = alpha.toFixed(2);
+
+      const baselinePrice = 45.00;
+      const baselineUnits = 142.5;
+      const cogs = 28.00;
+      const mapFloor = 39.99;
+      const antiRaceFloor = 42.75;
+
+      // Elasticity delta: % price change
+      const pctPriceChange = (price - baselinePrice) / baselinePrice;
+      // % volume change = elasticity * pctPriceChange
+      const pctVolumeChange = elasticity * pctPriceChange;
+      const newVolume = Math.max(10, baselineUnits * (1 + pctVolumeChange));
+      
+      const newRevenue = newVolume * price;
+      const unitMargin = price - cogs;
+      const marginPct = (unitMargin / price) * 100;
+      const newWeeklyMargin = newVolume * unitMargin;
+      const baselineWeeklyMargin = baselineUnits * (baselinePrice - cogs);
+      const ebitdaLift = newWeeklyMargin - baselineWeeklyMargin;
+
+      // Update UI displays
+      document.getElementById('sim-volume').innerHTML = `${newVolume.toFixed(1)} <small style="font-size:0.75rem; color:${pctVolumeChange >= 0 ? '#34d399':'#f43f5e'};">(${pctVolumeChange >= 0 ? '+' : ''}${(pctVolumeChange * 100).toFixed(1)}%)</small>`;
+      document.getElementById('sim-revenue').textContent = '$' + newRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      document.getElementById('sim-margin').innerHTML = `$${unitMargin.toFixed(2)} <small style="font-size:0.75rem; color:#38bdf8;">(${marginPct.toFixed(1)}%)</small>`;
+      
+      const ebitdaEl = document.getElementById('sim-ebitda');
+      ebitdaEl.textContent = `${ebitdaLift >= 0 ? '+' : ''}$${ebitdaLift.toFixed(2)}/wk`;
+      ebitdaEl.style.color = ebitdaLift >= 0 ? '#34d399' : '#fb7185';
+
+      // Competitor Delta
+      const deltaPrice = price - baselinePrice;
+      const deltaPct = (deltaPrice / baselinePrice) * 100;
+      document.getElementById('sim-comp-delta').textContent = `${deltaPrice >= 0 ? '+' : ''}$${deltaPrice.toFixed(2)} (${deltaPct >= 0 ? '+' : ''}${deltaPct.toFixed(2)}%)`;
+
+      // Reward Score Simulation
+      const normMargin = Math.max(0, Math.min(1, marginPct / 50));
+      const normVelocity = Math.max(0, Math.min(1, newVolume / 200));
+      const churnIndex = price > baselinePrice ? (price - baselinePrice) / baselinePrice : 0;
+      const rewardScore = alpha * normMargin + (1 - alpha) * normVelocity - 0.20 * churnIndex;
+      document.getElementById('sim-score').textContent = rewardScore.toFixed(3);
+
+      // Guardrails Verification
+      const complianceBox = document.getElementById('sim-compliance-box');
+      const complianceText = document.getElementById('sim-compliance-text');
+      const strategyBadge = document.getElementById('sim-strategy-badge');
+
+      let violations = [];
+      if (price < mapFloor) {
+        violations.push(`Breaches Contractual MAP Floor ($${mapFloor.toFixed(2)}) - Co-Op VETO!`);
+      }
+      if (price < antiRaceFloor) {
+        violations.push(`Violates 5% Anti-Race-to-Bottom Limit ($${antiRaceFloor.toFixed(2)})`);
+      }
+      if (marginPct < 12) {
+        violations.push(`Margin rate (${marginPct.toFixed(1)}%) below 12% internal floor`);
+      }
+
+      if (violations.length === 0) {
+        complianceBox.className = 'sim-compliance-indicator valid';
+        complianceText.textContent = `All Guardrails Passed: Anti-Race ($42.75), Margin Floor >=12%, MAP >= $39.99`;
+        if (price < baselinePrice) {
+          strategyBadge.textContent = "Controlled Undercut";
+          strategyBadge.style.color = "#34d399";
+        } else if (price === baselinePrice) {
+          strategyBadge.textContent = "Market Parity";
+          strategyBadge.style.color = "#38bdf8";
+        } else {
+          strategyBadge.textContent = "Premium Position";
+          strategyBadge.style.color = "#a855f7";
+        }
+      } else {
+        complianceBox.className = 'sim-compliance-indicator invalid';
+        complianceText.textContent = violations.join(' | ');
+        strategyBadge.textContent = "POLICY VIOLATION";
+        strategyBadge.style.color = "#f43f5e";
+      }
+    }
+
+    function resetSimulator() {
+      document.getElementById('price-slider').value = 44.49;
+      document.getElementById('elasticity-slider').value = -1.35;
+      document.getElementById('alpha-slider').value = 0.70;
+      updateSimulation();
+      showToast("Simulator reset to optimal policy ($44.49)");
+    }
+
+    // Initialize raw file display
+    window.addEventListener('DOMContentLoaded', () => {
+      loadRawFile('orchestrator', document.querySelector('.file-btn'));
+      updateSimulation();
+    });
+  </script>
+</body>
+</html>
