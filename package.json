@@ -1,6 +1,6 @@
 {
   "name": "enterprise-dynamic-pricing",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -20,7 +20,7 @@
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
-    "@types/node": "^24.19.0",
+    "@types/node": "^22.13.4",
     "@types/react": "^19.0.8",
     "@types/react-dom": "^19.0.3",
     "@tailwindcss/postcss": "^4.3.3",
