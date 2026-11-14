@@ -21,3 +21,6 @@ supabase/.temp
 # misc
 *.log
 .DS_Store
+
+.vercel
+.env*
